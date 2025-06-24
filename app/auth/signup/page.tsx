@@ -197,7 +197,7 @@ export default function SignUpPage() {
                   <Checkbox
                     id="terms"
                     checked={agreeToTerms}
-                    onCheckedChange={setAgreeToTerms}
+                    onCheckedChange={checked => setAgreeToTerms(checked === true)}
                     className="mt-1"
                   />
                   <label htmlFor="terms" className="text-sm">
@@ -216,7 +216,7 @@ export default function SignUpPage() {
                   <Checkbox
                     id="newsletter"
                     checked={subscribeNewsletter}
-                    onCheckedChange={setSubscribeNewsletter}
+                    onCheckedChange={checked => setSubscribeNewsletter(checked === true)}
                     className="mt-1"
                   />
                   <label htmlFor="newsletter" className="text-sm">

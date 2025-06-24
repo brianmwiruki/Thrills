@@ -116,7 +116,7 @@ export default function SignInPage() {
                   <Checkbox
                     id="remember"
                     checked={rememberMe}
-                    onCheckedChange={setRememberMe}
+                    onCheckedChange={checked => setRememberMe(checked === true)}
                   />
                   <label htmlFor="remember" className="text-sm">
                     Remember me
