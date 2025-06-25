@@ -20,8 +20,9 @@ import {
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
+import { ProductGrid } from '@/components/product/product-grid';
 
-export default function ProductDetailClient({ product }: { product: any }) {
+export default function ProductDetailClient({ product, relatedProducts = [] }: { product: any, relatedProducts?: any[] }) {
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const addItem = useCartStore((state) => state.addItem);
@@ -123,9 +124,13 @@ export default function ProductDetailClient({ product }: { product: any }) {
                 </div>
                 <span className="text-sm text-muted-foreground">(4.8 out of 5)</span>
               </div>
-              <p className="text-muted-foreground leading-relaxed">
-                {product.description}
-              </p>
+              <div className="text-muted-foreground leading-relaxed prose prose-sm max-w-none
+                [&_table]:w-full
+                [&_th]:bg-muted [&_td]:bg-background
+                [&_th]:font-semibold [&_th]:text-left [&_td]:text-left
+                dark:[&_th]:bg-muted/40 dark:[&_td]:bg-background/40
+                dark:[&_th]:text-white dark:[&_td]:text-white dark:text-white
+              " dangerouslySetInnerHTML={{ __html: product.description }} />
             </div>
             {/* Product Tags */}
             <div className="flex flex-wrap gap-2">
@@ -202,9 +207,13 @@ export default function ProductDetailClient({ product }: { product: any }) {
               <Card>
                 <CardContent className="p-6">
                   <div className="prose max-w-none">
-                    <p className="text-muted-foreground leading-relaxed">
-                      {product.description}
-                    </p>
+                    <div className="text-muted-foreground leading-relaxed prose prose-sm max-w-none
+                      [&_table]:w-full
+                      [&_th]:bg-muted [&_td]:bg-background
+                      [&_th]:font-semibold [&_th]:text-left [&_td]:text-left
+                      dark:[&_th]:bg-muted/40 dark:[&_td]:bg-background/40
+                      dark:[&_th]:text-white dark:[&_td]:text-white dark:text-white
+                    " dangerouslySetInnerHTML={{ __html: product.description }} />
                     <p className="text-muted-foreground leading-relaxed mt-4">
                       This premium product is designed with attention to detail and quality craftsmanship. 
                       Made from high-quality materials that ensure durability and long-lasting performance. 
@@ -300,6 +309,13 @@ export default function ProductDetailClient({ product }: { product: any }) {
             </Button>
           </Link>
         </div>
+        {/* Related Products Section */}
+        {relatedProducts.length > 0 && (
+          <div className="mt-20">
+            <h3 className="text-2xl font-bold mb-6 text-center">Related Products</h3>
+            <ProductGrid products={relatedProducts} />
+          </div>
+        )}
       </motion.div>
     </div>
   );

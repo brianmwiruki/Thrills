@@ -3,8 +3,27 @@ import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Instagram, Twitter, Facebook, Mail } from 'lucide-react';
+import { getProducts } from '@/lib/printify';
 
-export function Footer() {
+const FALLBACK_CATEGORIES = [
+  'jewelry',
+  'eyewear',
+  'accessories',
+  'tech',
+];
+
+export async function Footer() {
+  let categories: string[] = [];
+  try {
+    // Printify API limit is 50 per request
+    const printifyProducts = await getProducts(1, 50);
+    const allTags = Array.from(new Set(printifyProducts.flatMap(p => p.tags)));
+    categories = allTags.sort().slice(0, 6);
+  } catch (e) {
+    console.error('Failed to fetch categories for footer:', e);
+    categories = FALLBACK_CATEGORIES;
+  }
+
   return (
     <footer className="bg-muted/50 mt-20">
       <div className="container mx-auto px-4 py-16">
@@ -60,25 +79,17 @@ export function Footer() {
             <h4 className="font-semibold">Categories</h4>
             <ul className="space-y-2">
               <li>
-                <Link href="/shop?category=jewelry" className="text-muted-foreground hover:text-foreground transition-colors">
-                  Jewelry
+                <Link href="/shop" className="text-muted-foreground hover:text-foreground transition-colors">
+                  All
                 </Link>
               </li>
-              <li>
-                <Link href="/shop?category=eyewear" className="text-muted-foreground hover:text-foreground transition-colors">
-                  Eyewear
-                </Link>
-              </li>
-              <li>
-                <Link href="/shop?category=accessories" className="text-muted-foreground hover:text-foreground transition-colors">
-                  Accessories
-                </Link>
-              </li>
-              <li>
-                <Link href="/shop?category=tech" className="text-muted-foreground hover:text-foreground transition-colors">
-                  Tech
-                </Link>
-              </li>
+              {categories.map((cat) => (
+                <li key={cat}>
+                  <Link href={`/shop?category=${encodeURIComponent(cat)}`} className="text-muted-foreground hover:text-foreground transition-colors">
+                    {cat.replace(/-/g, ' ')}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
 
@@ -98,6 +109,16 @@ export function Footer() {
                 <Mail className="h-4 w-4" />
               </Button>
             </div>
+          </div>
+
+          {/* Company Info */}
+          <div className="space-y-4 md:col-span-4">
+            <h4 className="font-semibold">Contact</h4>
+            <p className="text-sm text-muted-foreground">
+              HONSON VENTURES LIMITED<br />
+              gpsr@honsonventures.com<br />
+              3, Gnaftis House flat 102, Mesa Geitonia, 4003, Limassol, CY
+            </p>
           </div>
         </div>
 

@@ -45,8 +45,8 @@ export default function ContactPage() {
       icon: Mail,
       title: 'Email Us',
       description: 'Send us an email anytime',
-      value: 'hello@thrills.com',
-      action: 'mailto:hello@thrills.com'
+      value: 'gpsr@honsonventures.com',
+      action: 'mailto:gpsr@honsonventures.com'
     },
     {
       icon: Phone,
@@ -58,9 +58,9 @@ export default function ContactPage() {
     {
       icon: MapPin,
       title: 'Visit Us',
-      description: 'Our headquarters',
-      value: '123 Fashion Ave, NY 10001',
-      action: 'https://maps.google.com'
+      description: 'HONSON VENTURES LIMITED',
+      value: '3, Gnaftis House flat 102, Mesa Geitonia, 4003, Limassol, CY',
+      action: 'https://maps.google.com/?q=3,+Gnaftis+House+flat+102,+Mesa+Geitonia,+4003,+Limassol,+CY'
     }
   ];
 

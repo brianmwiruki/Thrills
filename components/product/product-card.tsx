@@ -15,6 +15,13 @@ interface ProductCardProps {
   product: Product;
 }
 
+const productDescriptionProse = `text-sm text-muted-foreground prose prose-xs max-w-none line-clamp-2\n  dark:prose-invert\n  [&_table]:w-full\n  [&_th]:bg-muted [&_td]:bg-background\n  [&_th]:font-semibold [&_th]:text-left [&_td]:text-left\n  dark:[&_th]:bg-muted/40 dark:[&_td]:bg-background/40\n  dark:[&_th]:text-white dark:[&_td]:text-white dark:text-white\n`;
+
+function stripHtml(html: string): string {
+  // Always use regex for deterministic SSR/CSR output
+  return html.replace(/<[^>]+>/g, '');
+}
+
 export function ProductCard({ product }: ProductCardProps) {
   const addItem = useCartStore((state) => state.addItem);
 
@@ -79,11 +86,9 @@ export function ProductCard({ product }: ProductCardProps) {
               <h3 className="font-semibold hover:text-primary transition-colors line-clamp-1">
                 {product.name}
               </h3>
-              
               <p className="text-sm text-muted-foreground line-clamp-2">
-                {product.description}
+                {stripHtml(product.description)}
               </p>
-              
               <div className="flex items-center gap-2">
                 <span className="font-bold text-lg">${product.price}</span>
                 {product.originalPrice && (
