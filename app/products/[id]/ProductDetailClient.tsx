@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useCartStore } from '@/lib/store/cart';
 import { 
   ShoppingCart, 
@@ -16,29 +17,206 @@ import {
   Shield, 
   ArrowLeft,
   Plus,
-  Minus
+  Minus,
+  Check,
+  AlertCircle
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { ProductGrid } from '@/components/product/product-grid';
+import { PrintifyVariant, PrintifyOption, PrintifyImage, Product } from '@/types';
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselPrevious,
+  CarouselNext,
+} from '@/components/ui/carousel';
+import { ProductCard } from '@/components/product/product-card';
+
+// Helper: Extract color and size from variant title (e.g., "Black / M")
+function parseVariantTitle(title: string) {
+  const [color, size] = title.split('/').map((s) => s.trim());
+  return { color, size };
+}
+
+// Helper: Map images to color options using Printify's variant_ids
+function mapImagesToColors(images: PrintifyImage[], options: PrintifyOption[], variants: PrintifyVariant[]): Record<string, PrintifyImage[]> {
+  // Find the color option
+  const colorOption = options?.find(opt => opt.type === 'color');
+  if (!colorOption) return {};
+  // Build a map: color name -> [variant ids]
+  const colorToVariantIds: Record<string, number[]> = {};
+  colorOption.values.forEach(val => {
+    // Find all variant ids for this color
+    const ids = variants
+      .filter((variant: PrintifyVariant) => variant.title.split('/')[0].trim() === val.title)
+      .map((variant: PrintifyVariant) => variant.id);
+    colorToVariantIds[val.title] = ids;
+  });
+  // Map color name -> images
+  const colorToImages: Record<string, PrintifyImage[]> = {};
+  for (const color in colorToVariantIds) {
+    const variantIds = colorToVariantIds[color];
+    colorToImages[color] = images.filter(img =>
+      Array.isArray(img.variant_ids) && img.variant_ids.some((id: number) => variantIds.includes(id))
+    );
+  }
+  return colorToImages;
+}
 
 export default function ProductDetailClient({ product, relatedProducts = [] }: { product: any, relatedProducts?: any[] }) {
-  const [selectedImage, setSelectedImage] = useState(0);
+  // Extract color options and hex codes from options array
+  const colorOption: PrintifyOption | undefined = product.options?.find((opt: any) => opt.type === 'color');
+  const colorValues = colorOption?.values || [];
+  // Map color name to hex code
+  const colorHexMap: Record<string, string | undefined> = {};
+  colorValues.forEach((val: any) => {
+    colorHexMap[val.title] = val.colors?.[0];
+  });
+
+  // Extract all unique colors and sizes from variants
+  const variants: PrintifyVariant[] = product.variants || [];
+  // Only include enabled variants
+  const enabledVariants: PrintifyVariant[] = variants.filter((v: PrintifyVariant) => v.is_enabled);
+
+  // Extract all unique colors and sizes from enabled variants
+  const colorSet = new Set<string>();
+  const sizeSet = new Set<string>();
+  const colorToVariantIds: Record<string, number[]> = {};
+  enabledVariants.forEach((variant: PrintifyVariant) => {
+    const [color, size] = variant.title.split('/').map((s: string) => s.trim());
+    if (color) {
+      colorSet.add(color);
+      if (!colorToVariantIds[color]) colorToVariantIds[color] = [];
+      colorToVariantIds[color].push(variant.id);
+    }
+    if (size) sizeSet.add(size);
+  });
+  const colors = Array.from(colorSet);
+  const sizes = Array.from(sizeSet);
+
+  // State
+  const [selectedColor, setSelectedColor] = useState(colors[0] || '');
+  // Dynamically compute all possible sizes for the selected color
+  const allSizeVariantsForColor = (variants || []).filter((variant: PrintifyVariant) => {
+    const [color] = variant.title.split('/').map((s: string) => s.trim());
+    return color === selectedColor;
+  });
+  const allSizesForColor: string[] = Array.from(new Set(
+    allSizeVariantsForColor
+      .map((variant: PrintifyVariant) => {
+        const [, size] = variant.title.split('/').map((s: string) => s.trim());
+        return typeof size === 'string' ? size : '';
+      })
+      .filter((size: string) => !!size)
+  ));
+  // Which sizes are enabled for the selected color?
+  const enabledSizesForColor: Set<string> = new Set(
+    enabledVariants
+      .filter((variant: PrintifyVariant) => {
+        const [color] = variant.title.split('/').map((s: string) => s.trim());
+        return color === selectedColor;
+      })
+      .map((variant: PrintifyVariant) => {
+        const [, size] = variant.title.split('/').map((s: string) => s.trim());
+        return typeof size === 'string' ? size : '';
+      })
+      .filter((size: string) => !!size)
+  );
+
+  // Selected size state, default to first available size for selected color
+  const [selectedSize, setSelectedSize] = useState<string>(allSizesForColor[0] || '');
+
+  // When selectedColor changes, update selectedSize if needed
+  useEffect(() => {
+    if (!allSizesForColor.includes(selectedSize)) {
+      setSelectedSize(allSizesForColor[0] || '');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedColor, product.id, allSizesForColor.join(",")]);
+
   const [quantity, setQuantity] = useState(1);
+  // Find the enabled variant matching the selected color and size
+  const selectedVariant = enabledVariants.find((variant: PrintifyVariant) => {
+    const [color, size] = variant.title.split('/').map((s: string) => s.trim());
+    return color === selectedColor && size === selectedSize;
+  });
+
+  // Automatic mapping: images for each color
+  const colorToImages = mapImagesToColors(product.images || [], product.options || [], product.variants || []);
+  const validImagesForColor = (colorToImages[selectedColor] || []).filter((img: PrintifyImage) => img && typeof img.src === 'string' && img.src.length > 0);
+  // Only show images for the selected color. If none, show no images.
+  const validImagesForDisplay = validImagesForColor;
+  const [selectedImageIdx, setSelectedImageIdx] = useState<number>(0);
+
+  // Set the default color only on initial mount or when the product ID changes
+  useEffect(() => {
+    if (availableColors.length > 0) {
+      setSelectedColor(availableColors[0]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product.id]);
+
+  // When the user selects a color, set selectedImageIdx to a random index from 4 to 8 (if enough images), else random available index
+  const handleColorChange = (color: string) => {
+    setSelectedColor(color);
+    // Find images for the selected color
+    const imagesForColor = (mapImagesToColors(product.images || [], product.options || [], product.variants || [])[color] || []).filter((img: PrintifyImage) => img && typeof img.src === 'string' && img.src.length > 0);
+    let randomIdx = 0;
+    if (imagesForColor.length > 8) {
+      randomIdx = Math.floor(Math.random() * 5) + 4; // 4 to 8 inclusive
+    } else if (imagesForColor.length > 4) {
+      const min = 4;
+      const max = imagesForColor.length - 1;
+      randomIdx = Math.floor(Math.random() * (max - min + 1)) + min;
+    } else if (imagesForColor.length > 0) {
+      randomIdx = Math.floor(Math.random() * imagesForColor.length);
+    }
+    setSelectedImageIdx(randomIdx);
+  };
+
   const addItem = useCartStore((state) => state.addItem);
 
-  if (!product) return null;
-
   const handleAddToCart = () => {
+    if (!selectedVariant) {
+      toast.error('Please select a valid color and size');
+      return;
+    }
+    const productToAdd = {
+      ...product,
+      selectedVariant,
+      selectedSize,
+      selectedColor,
+      price: selectedVariant.price / 100,
+    };
     for (let i = 0; i < quantity; i++) {
-      addItem(product);
+      addItem(productToAdd);
     }
     toast.success(`Added ${quantity} ${quantity === 1 ? 'item' : 'items'} to cart!`);
   };
 
-  const discountPercentage = product.originalPrice 
-    ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
-    : 0;
+  const currentPrice = selectedVariant ? selectedVariant.price / 100 : product.price;
+
+  // Only show colors that have at least one enabled variant and at least one image
+  const availableColors = colors.filter(color => {
+    // Must have at least one enabled variant
+    const hasVariant = enabledVariants.some((variant: PrintifyVariant) => variant.title.split('/')[0].trim() === color);
+    // Must have at least one image
+    const hasImage = (colorToImages[color] || []).some((img: PrintifyImage) => img && typeof img.src === 'string' && img.src.length > 0);
+    return hasVariant && hasImage;
+  });
+
+  // State for description expansion
+  const [descExpanded, setDescExpanded] = useState<boolean>(false);
+
+  // Helper to get first ~200 words as plain text
+  function getFirstWordsPlainText(html: string, wordLimit: number): string {
+    const text = html.replace(/<[^>]+>/g, '');
+    const words = text.split(/\s+/);
+    if (words.length <= wordLimit) return text;
+    return words.slice(0, wordLimit).join(' ') + '...';
+  }
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -61,41 +239,52 @@ export default function ProductDetailClient({ product, relatedProducts = [] }: {
           {/* Product Images */}
           <div className="space-y-4">
             <div className="relative aspect-square overflow-hidden rounded-lg border">
-              <Image
-                src={product.images[selectedImage]}
-                alt={product.name}
-                fill
-                className="object-cover"
-                priority
-              />
+              {validImagesForDisplay.length > 0 && validImagesForDisplay[selectedImageIdx]?.src ? (
+                <Image
+                  src={validImagesForDisplay[selectedImageIdx].src}
+                  alt={product.name}
+                  fill
+                  className="object-cover"
+                  priority
+                />
+              ) : (
+                <div className="flex items-center justify-center w-full h-full text-muted-foreground">No image available</div>
+              )}
               {!product.inStock && (
                 <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
                   <Badge variant="destructive" className="text-lg">Out of Stock</Badge>
                 </div>
               )}
             </div>
-            {/* Image Thumbnails */}
-            {product.images.length > 1 && (
-              <div className="grid grid-cols-4 gap-2">
-                {product.images.map((image: string, index: number) => (
-                  <button
-                    key={index}
-                    onClick={() => setSelectedImage(index)}
-                    className={`relative aspect-square overflow-hidden rounded-md border-2 transition-all ${
-                      selectedImage === index 
-                        ? 'border-primary' 
-                        : 'border-muted hover:border-muted-foreground'
-                    }`}
-                  >
-                    <Image
-                      src={image}
-                      alt={`${product.name} ${index + 1}`}
-                      fill
-                      className="object-cover"
-                    />
-                  </button>
-                ))}
-              </div>
+            {/* Carousel Thumbnails */}
+            {validImagesForDisplay.length > 1 && (
+              <Carousel opts={{ align: 'start' }} className="w-full">
+                <CarouselContent className="-ml-2">
+                  {validImagesForDisplay.map((img: PrintifyImage, idx: number) => (
+                    <CarouselItem key={img.src || idx} className="basis-1/4 pl-2">
+                      {img && typeof img.src === 'string' && img.src.length > 0 ? (
+                        <button
+                          onClick={() => setSelectedImageIdx(idx)}
+                          className={`relative aspect-square overflow-hidden rounded-md border-2 transition-all w-full h-20 ${
+                            selectedImageIdx === idx
+                              ? 'border-primary'
+                              : 'border-muted hover:border-muted-foreground'
+                          }`}
+                        >
+                          <Image
+                            src={img.src}
+                            alt={`${product.name} ${idx + 1}`}
+                            fill
+                            className="object-cover"
+                          />
+                        </button>
+                      ) : null}
+                    </CarouselItem>
+                  ))}
+                </CarouselContent>
+                <CarouselPrevious className="-left-6" />
+                <CarouselNext className="-right-6" />
+              </Carousel>
             )}
           </div>
 
@@ -105,15 +294,7 @@ export default function ProductDetailClient({ product, relatedProducts = [] }: {
               <h1 className="text-3xl font-bold mb-2">{product.name}</h1>
               <div className="flex items-center gap-4 mb-4">
                 <div className="flex items-center gap-2">
-                  <span className="text-3xl font-bold">${product.price}</span>
-                  {product.originalPrice && (
-                    <>
-                      <span className="text-xl text-muted-foreground line-through">
-                        ${product.originalPrice}
-                      </span>
-                      <Badge variant="destructive">{discountPercentage}% OFF</Badge>
-                    </>
-                  )}
+                  <span className="text-3xl font-bold">${currentPrice.toFixed(2)}</span>
                 </div>
               </div>
               <div className="flex items-center gap-2 mb-4">
@@ -130,7 +311,20 @@ export default function ProductDetailClient({ product, relatedProducts = [] }: {
                 [&_th]:font-semibold [&_th]:text-left [&_td]:text-left
                 dark:[&_th]:bg-muted/40 dark:[&_td]:bg-background/40
                 dark:[&_th]:text-white dark:[&_td]:text-white dark:text-white
-              " dangerouslySetInnerHTML={{ __html: product.description }} />
+              ">
+                <div className="relative">
+                  <div
+                    className={descExpanded ? '' : 'line-clamp-3 overflow-hidden'}
+                    dangerouslySetInnerHTML={{ __html: product.description }}
+                  />
+                  <button
+                    className="mt-2 text-primary underline text-sm focus:outline-none"
+                    onClick={() => setDescExpanded((v) => !v)}
+                  >
+                    {descExpanded ? 'Show less' : 'Read more'}
+                  </button>
+                </div>
+              </div>
             </div>
             {/* Product Tags */}
             <div className="flex flex-wrap gap-2">
@@ -139,6 +333,47 @@ export default function ProductDetailClient({ product, relatedProducts = [] }: {
                   {tag.replace('-', ' ')}
                 </Badge>
               ))}
+            </div>
+            {/* Color Selection */}
+            <div className="space-y-3">
+              <label className="text-sm font-medium">Color</label>
+              <Select value={selectedColor} onValueChange={handleColorChange}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select color" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableColors.map((color) => (
+                    <SelectItem key={color} value={color}>
+                      <span className="flex items-center gap-2">
+                        {colorHexMap[color] && (
+                          <span className="inline-block w-4 h-4 rounded-full border border-gray-300" style={{ backgroundColor: colorHexMap[color] }} />
+                        )}
+                        {color}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {/* Size Selection */}
+            <div className="space-y-3">
+              <label className="text-sm font-medium">Size</label>
+              <div className="grid grid-cols-4 gap-2">
+                {allSizesForColor.map((size: string) => (
+                  <button
+                    key={size}
+                    onClick={() => enabledSizesForColor.has(size) && setSelectedSize(size)}
+                    disabled={!enabledSizesForColor.has(size)}
+                    className={[
+                      'p-3 border rounded-lg text-center transition-all',
+                      selectedSize === size ? 'border-primary bg-primary/5' : 'border-muted hover:border-muted-foreground',
+                      !enabledSizesForColor.has(size) ? 'opacity-50 cursor-not-allowed' : ''
+                    ].filter(Boolean).join(' ')}
+                  >
+                    {size}
+                  </button>
+                ))}
+              </div>
             </div>
             {/* Quantity and Add to Cart */}
             <div className="space-y-4">
@@ -167,7 +402,7 @@ export default function ProductDetailClient({ product, relatedProducts = [] }: {
                 <Button 
                   size="lg" 
                   onClick={handleAddToCart}
-                  disabled={!product.inStock}
+                  disabled={!product.inStock || !selectedVariant || !selectedVariant.is_enabled}
                   className="flex-1"
                 >
                   <ShoppingCart className="h-4 w-4 mr-2" />
@@ -193,6 +428,10 @@ export default function ProductDetailClient({ product, relatedProducts = [] }: {
                 <span className="text-sm">Premium Quality</span>
               </div>
             </div>
+            {/* Show a message if no enabled variants are available for the selected color/size */}
+            {!selectedVariant && (
+              <div className="text-sm text-red-500 mt-2">This combination is out of stock.</div>
+            )}
           </div>
         </div>
         {/* Product Details Tabs */}
@@ -207,13 +446,6 @@ export default function ProductDetailClient({ product, relatedProducts = [] }: {
               <Card>
                 <CardContent className="p-6">
                   <div className="prose max-w-none">
-                    <div className="text-muted-foreground leading-relaxed prose prose-sm max-w-none
-                      [&_table]:w-full
-                      [&_th]:bg-muted [&_td]:bg-background
-                      [&_th]:font-semibold [&_th]:text-left [&_td]:text-left
-                      dark:[&_th]:bg-muted/40 dark:[&_td]:bg-background/40
-                      dark:[&_th]:text-white dark:[&_td]:text-white dark:text-white
-                    " dangerouslySetInnerHTML={{ __html: product.description }} />
                     <p className="text-muted-foreground leading-relaxed mt-4">
                       This premium product is designed with attention to detail and quality craftsmanship. 
                       Made from high-quality materials that ensure durability and long-lasting performance. 
@@ -313,7 +545,20 @@ export default function ProductDetailClient({ product, relatedProducts = [] }: {
         {relatedProducts.length > 0 && (
           <div className="mt-20">
             <h3 className="text-2xl font-bold mb-6 text-center">Related Products</h3>
-            <ProductGrid products={relatedProducts} />
+            <Carousel opts={{ align: 'start', slidesToScroll: 1, loop: true }} className="w-full">
+              <CarouselContent className="-ml-2 md:-ml-4">
+                {relatedProducts.map((product: Product) => (
+                  <CarouselItem
+                    key={product.id}
+                    className="pl-2 md:pl-4 basis-4/5 sm:basis-1/2 md:basis-1/3 lg:basis-1/4"
+                  >
+                    <ProductCard product={product} />
+                  </CarouselItem>
+                ))}
+              </CarouselContent>
+              <CarouselPrevious className="-left-4 md:-left-8" />
+              <CarouselNext className="-right-4 md:-right-8" />
+            </Carousel>
           </div>
         )}
       </motion.div>

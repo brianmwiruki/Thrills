@@ -13,18 +13,25 @@ import {
   CarouselNext,
 } from '@/components/ui/carousel';
 import { ProductCard } from '@/components/product/product-card';
+import { useState } from 'react';
+import GreenDonationForm from './components/GreenDonationForm';
 
 function adaptPrintifyProduct(printifyProduct: PrintifyProduct) {
   return {
     id: printifyProduct.id,
     name: printifyProduct.title,
     description: printifyProduct.description,
-    price: printifyProduct.variants[0]?.price / 100 || 0,
-    originalPrice: undefined, // You might need to add logic for this
+    price: Math.round((printifyProduct.variants[0]?.price || 0) * 1.3) / 100,
+    originalPrice: printifyProduct.variants[0]?.price / 100 || 0,
     inStock: printifyProduct.variants.some(v => v.is_enabled),
     images: printifyProduct.images.map(img => img.src),
     tags: printifyProduct.tags,
     category: printifyProduct.tags[0] || 'Uncategorized',
+    variants: printifyProduct.variants.map(v => ({
+      ...v,
+      price: Math.round(v.price * 1.3), // keep in cents for consistency
+    })),
+    options: printifyProduct.options,
   };
 }
 
@@ -49,21 +56,6 @@ export default async function Home() {
   return (
     <div className="space-y-20">
       <HeroSection />
-      {/* Categories Section */}
-      {categories.length > 0 && (
-        <section className="container mx-auto px-4">
-          <h2 className="text-2xl md:text-3xl font-bold mb-8 text-center">Shop by Category</h2>
-          <div className="flex flex-wrap justify-center gap-4">
-            {categories.map((cat) => (
-              <Link key={cat.id} href={{ pathname: '/shop', query: { category: cat.id } }}>
-                <Badge variant="secondary" className="text-base px-4 py-2 cursor-pointer hover:scale-105 transition-transform">
-                  {cat.name}
-                </Badge>
-              </Link>
-            ))}
-          </div>
-        </section>
-      )}
       {/* Featured Products Section */}
       {products.length > 0 && (
         <section className="container mx-auto px-4">
@@ -83,6 +75,34 @@ export default async function Home() {
               <CarouselPrevious className="-left-4 md:-left-8" />
               <CarouselNext className="-right-4 md:-right-8" />
             </Carousel>
+          </div>
+        </section>
+      )}
+      {/* Green Movement Donation Section (compact, below featured products) */}
+      <section className="container mx-auto px-4">
+        <div className="bg-green-50 border border-green-200 rounded-2xl py-4 px-4 mb-8 flex flex-col items-center shadow-md max-w-xl mx-auto">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-2xl">🌱</span>
+            <h2 className="text-lg md:text-xl font-bold">Support the Green Movement</h2>
+          </div>
+          <p className="text-sm text-center max-w-lg mb-2 text-green-900">
+            Make a difference—donate to help plant trees and create a cleaner future for all.
+          </p>
+          <GreenDonationForm compact />
+        </div>
+      </section>
+      {/* Categories Section */}
+      {categories.length > 0 && (
+        <section className="container mx-auto px-4">
+          <h2 className="text-2xl md:text-3xl font-bold mb-8 text-center">Shop by Category</h2>
+          <div className="flex flex-wrap justify-center gap-4">
+            {categories.map((cat) => (
+              <Link key={cat.id} href={{ pathname: '/shop', query: { category: cat.id } }}>
+                <Badge variant="secondary" className="text-base px-4 py-2 cursor-pointer hover:scale-105 transition-transform">
+                  {cat.name}
+                </Badge>
+              </Link>
+            ))}
           </div>
         </section>
       )}

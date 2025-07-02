@@ -4,6 +4,7 @@ import Image from 'next/image';
 import { CartItem } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { useCartStore } from '@/lib/store/cart';
 import { Minus, Plus, Trash2 } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -23,6 +24,11 @@ export function CartItemComponent({ item }: CartItemComponentProps) {
     }
   };
 
+  // Extract variant information
+  const selectedVariant = item.product.selectedVariant;
+  const selectedSize = item.product.selectedSize;
+  const selectedColor = item.product.selectedColor;
+
   return (
     <motion.div
       layout
@@ -36,7 +42,7 @@ export function CartItemComponent({ item }: CartItemComponentProps) {
           <div className="flex space-x-4">
             <div className="relative w-20 h-20 flex-shrink-0">
               <Image
-                src={item.product.images[0]}
+                src={typeof item.product.images[0] === 'string' ? item.product.images[0] : item.product.images[0]?.src}
                 alt={item.product.name}
                 fill
                 className="object-cover rounded-md"
@@ -45,6 +51,26 @@ export function CartItemComponent({ item }: CartItemComponentProps) {
             
             <div className="flex-1 min-w-0">
               <h3 className="font-semibold truncate">{item.product.name}</h3>
+              
+              {/* Variant Information */}
+              <div className="flex flex-wrap gap-2 mt-1">
+                {selectedVariant && (
+                  <Badge variant="secondary" className="text-xs">
+                    {selectedVariant.title}
+                  </Badge>
+                )}
+                {selectedSize && (
+                  <Badge variant="outline" className="text-xs">
+                    Size: {selectedSize}
+                  </Badge>
+                )}
+                {selectedColor && (
+                  <Badge variant="outline" className="text-xs">
+                    Color: {selectedColor}
+                  </Badge>
+                )}
+              </div>
+              
               <p className="text-sm text-muted-foreground mt-1">
                 ${item.product.price} each
               </p>

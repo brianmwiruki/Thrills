@@ -5,10 +5,14 @@ export interface Product {
   price: number;
   originalPrice?: number;
   inStock: boolean;
-  images: string[];
+  images: (string | PrintifyImage)[];
   tags: string[];
   category: string;
   featured?: boolean;
+  variants?: PrintifyVariant[];
+  selectedVariant?: PrintifyVariant;
+  selectedSize?: string;
+  selectedColor?: string;
 }
 
 export interface Category {
@@ -33,6 +37,18 @@ export interface PrintifyVariant {
   title: string;
 }
 
+export interface PrintifyOptionValue {
+  id: number;
+  title: string;
+  colors?: string[]; // hex codes
+}
+
+export interface PrintifyOption {
+  name: string;
+  type: string;
+  values: PrintifyOptionValue[];
+}
+
 export interface PrintifyProduct {
   id: string;
   title: string;
@@ -40,6 +56,7 @@ export interface PrintifyProduct {
   tags: string[];
   images: PrintifyImage[];
   variants: PrintifyVariant[];
+  options: PrintifyOption[];
   created_at: string;
   updated_at: string;
 }

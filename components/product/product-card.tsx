@@ -27,6 +27,23 @@ export function ProductCard({ product }: ProductCardProps) {
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
+    // If product has variants, check for at least one enabled variant
+    if (product.variants && product.variants.length > 0) {
+      const enabledVariant = product.variants.find(v => v.is_enabled);
+      if (!enabledVariant) {
+        toast.error('This product is currently out of stock.');
+        return;
+      }
+      // Add product with selectedVariant info
+      addItem({
+        ...product,
+        selectedVariant: enabledVariant,
+        price: enabledVariant.price / 100, // assuming price is in cents
+      });
+      toast.success('Added to cart!');
+      return;
+    }
+    // No variants, add as before
     addItem(product);
     toast.success('Added to cart!');
   };
@@ -44,7 +61,7 @@ export function ProductCard({ product }: ProductCardProps) {
         <Card className="overflow-hidden cursor-pointer">
           <div className="relative aspect-square overflow-hidden">
             <Image
-              src={product.images[0]}
+              src={typeof product.images[0] === 'string' ? product.images[0] : product.images[0]?.src}
               alt={product.name}
               fill
               className="object-cover transition-transform duration-300 group-hover:scale-105"

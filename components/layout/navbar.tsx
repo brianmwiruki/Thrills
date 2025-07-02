@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useCartStore } from '@/lib/store/cart';
 import { Button } from '@/components/ui/button';
@@ -22,6 +22,9 @@ export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const totalItems = useCartStore((state) => state.getTotalItems());
   const { theme, setTheme } = useTheme();
+  const [isHydrated, setIsHydrated] = useState(false);
+
+  useEffect(() => { setIsHydrated(true); }, []);
 
   const navigation = [
     { name: 'Home', href: '/' },
@@ -91,7 +94,7 @@ export function Navbar() {
             <Link href="/cart">
               <Button variant="ghost" size="icon" className="relative">
                 <ShoppingBag className="h-5 w-5" />
-                {totalItems > 0 && (
+                {isHydrated && totalItems > 0 && (
                   <Badge 
                     variant="destructive" 
                     className="absolute -top-2 -right-2 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs"

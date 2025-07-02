@@ -18,12 +18,17 @@ function adaptPrintifyProduct(printifyProduct: PrintifyProduct) {
     id: printifyProduct.id,
     name: printifyProduct.title,
     description: printifyProduct.description,
-    price: printifyProduct.variants[0]?.price / 100 || 0,
-    originalPrice: undefined, // You might need to add logic for this
+    price: Math.round((printifyProduct.variants[0]?.price || 0) * 1.3) / 100,
+    originalPrice: printifyProduct.variants[0]?.price / 100 || 0,
     inStock: printifyProduct.variants.some(v => v.is_enabled),
-    images: printifyProduct.images.map(img => img.src),
+    images: printifyProduct.images, // Pass the full images array
     tags: printifyProduct.tags,
     category: printifyProduct.tags[0] || 'Uncategorized', // Example category
+    variants: printifyProduct.variants.map(v => ({
+      ...v,
+      price: Math.round(v.price * 1.3), // keep in cents for consistency
+    })),
+    options: printifyProduct.options, // Pass the options array
   };
 }
 
